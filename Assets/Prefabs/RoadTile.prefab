@@ -48,7 +48,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bb4b9de5a9e921c46bf83fb1e87c287a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoadTile
-  rotationSpeed: 10
+  rotationSpeed: 90
 --- !u!65 &1330733836289924792
 BoxCollider:
   m_ObjectHideFlags: 0
