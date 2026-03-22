@@ -12,12 +12,12 @@ using System.Collections.Generic;
 public class TilePlacementManager : MonoBehaviour
 {
     [Header("Level Tile Config")]
-    public TilePrefabEntry[] availableTiles;
+    public TilePrefabEntry[] availableTiles;    // Set per level in Inspector
 
     [Header("Toolbar UI")]
-    public Transform toolbarContainer;
-    public GameObject tileButtonPrefab;
-    public GameObject toolbarPanel;
+    public Transform toolbarContainer;          // Horizontal Layout Group
+    public GameObject tileButtonPrefab;         // Prefab: Button + RawImage + 2x TMP_Text + Outline
+    public GameObject toolbarPanel;             // The whole bottom panel
 
     [Header("Scene Setup")]
     public Camera mainCamera;

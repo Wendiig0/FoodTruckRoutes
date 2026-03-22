@@ -4424,6 +4424,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1857324331}
+  - component: {fileID: 1857324332}
   m_Layer: 0
   m_Name: TilePlacementManager
   m_TagString: Untagged
@@ -4446,6 +4447,31 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1857324332
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1857324330}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e10c78c572b4f6479a659ed613e8bef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TilePlacementManager
+  availableTiles:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  toolbarContainer: {fileID: 585044043}
+  tileButtonPrefab: {fileID: 2042666748}
+  toolbarPanel: {fileID: 1070447941}
+  mainCamera: {fileID: 330585545}
+  roadTileTag: RoadTile
+  editorToggleButton: {fileID: 0}
+  editorToggleLabel: {fileID: 0}
+  car: {fileID: 0}
+  highlightMaterial: {fileID: 0}
 --- !u!1 &1864018581
 GameObject:
   m_ObjectHideFlags: 0
@@ -4964,6 +4990,6 @@ SceneRoots:
   - {fileID: 1249607444}
   - {fileID: 134993572}
   - {fileID: 603088293}
+  - {fileID: 1857324331}
   - {fileID: 585044043}
   - {fileID: 678866735}
-  - {fileID: 1857324331}
