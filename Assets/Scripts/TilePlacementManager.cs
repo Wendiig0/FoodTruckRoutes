@@ -3,25 +3,27 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
 
-/// <summary>
-/// Main manager for the tile toolbar and placement system.
-/// - Builds toolbar from TilePrefabEntry list
-/// - Handles tile selection and road tile swapping
-/// - Tracks limited tile counts per level
-/// </summary>
 public class TilePlacementManager : MonoBehaviour
 {
+    [System.Serializable]
+    public class TileEntry
+    {
+        public string tileName;
+        public GameObject tilePrefab;
+        public Texture2D tileIcon;
+        public int count;
+    }
+
     [Header("Level Tile Config")]
-    public TilePrefabEntry[] availableTiles;    // Set per level in Inspector
+    public TileEntry[] availableTiles;
 
     [Header("Toolbar UI")]
-    public Transform toolbarContainer;          // Horizontal Layout Group
-    public GameObject tileButtonPrefab;         // Prefab: Button + RawImage + 2x TMP_Text + Outline
-    public GameObject toolbarPanel;             // The whole bottom panel
+    public Transform toolbarContainer;
+    public GameObject tileButtonPrefab;
+    public GameObject toolbarPanel;
 
     [Header("Scene Setup")]
     public Camera mainCamera;
-    public string roadTileTag = "RoadTile";
 
     [Header("Editor Toggle")]
     public Button editorToggleButton;
@@ -33,47 +35,59 @@ public class TilePlacementManager : MonoBehaviour
     [Header("Highlight")]
     public Material highlightMaterial;
 
-    // Internal state
-    private List<TileButtonUI> tileButtons = new List<TileButtonUI>();
+    private readonly List<TileButtonUI> tileButtons = new List<TileButtonUI>();
     private TileButtonUI selectedButton = null;
     private bool isEditorMode = false;
 
-    // Hover highlight tracking
     private GameObject hoveredTile;
     private MeshRenderer hoveredRenderer;
     private Material hoveredOriginalMat;
 
-    void Start()
+    private void Start()
     {
-        if (mainCamera == null) mainCamera = Camera.main;
+        if (mainCamera == null)
+            mainCamera = Camera.main;
 
         BuildToolbar();
 
-        toolbarPanel.SetActive(false);
-        editorToggleButton.onClick.AddListener(ToggleEditorMode);
+        if (toolbarPanel != null)
+            toolbarPanel.SetActive(false);
+
+        if (editorToggleButton != null)
+            editorToggleButton.onClick.AddListener(ToggleEditorMode);
+
         UpdateToggleLabel();
     }
 
-    void BuildToolbar()
+    private void BuildToolbar()
     {
-        for (int i = 0; i < availableTiles.Length; i++)
-        {
-            TilePrefabEntry entry = availableTiles[i];
+        if (toolbarContainer == null || tileButtonPrefab == null) return;
 
+        foreach (Transform child in toolbarContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        tileButtons.Clear();
+
+        foreach (TileEntry entry in availableTiles)
+        {
             GameObject btnObj = Instantiate(tileButtonPrefab, toolbarContainer);
             TileButtonUI btnUI = btnObj.GetComponent<TileButtonUI>();
-            btnUI.Setup(entry, OnTileButtonSelected);
-            tileButtons.Add(btnUI);
+
+            if (btnUI != null)
+            {
+                btnUI.Setup(entry.tileName, entry.tileIcon, entry.count, entry.tilePrefab, OnTileButtonSelected);
+                tileButtons.Add(btnUI);
+            }
         }
     }
 
-    void OnTileButtonSelected(TileButtonUI btn)
+    private void OnTileButtonSelected(TileButtonUI btn)
     {
-        // Deselect previous
         if (selectedButton != null)
             selectedButton.SetSelected(false);
 
-        // Toggle off if clicking same tile again
         if (selectedButton == btn)
         {
             selectedButton = null;
@@ -81,92 +95,95 @@ public class TilePlacementManager : MonoBehaviour
         }
 
         selectedButton = btn;
-        selectedButton.SetSelected(true);
+
+        if (selectedButton != null)
+            selectedButton.SetSelected(true);
     }
 
-    void Update()
+    private void Update()
     {
         if (!isEditorMode) return;
 
         HandleHover();
 
         if (Input.GetMouseButtonDown(0))
-            TryPlaceTile();
+        {
+            HandleClick(Input.mousePosition);
+        }
 
-        // Touch support
         if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
-            TryPlaceTile(Input.GetTouch(0).position);
-    }
-
-    void HandleHover()
-    {
-        if (selectedButton == null) { RestoreHover(); return; }
-
-        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit) && hit.transform.CompareTag(roadTileTag))
         {
-            GameObject obj = hit.transform.gameObject;
-            if (obj != hoveredTile)
-            {
-                RestoreHover();
-                hoveredTile = obj;
-                hoveredRenderer = obj.GetComponentInChildren<MeshRenderer>();
-                if (hoveredRenderer != null && highlightMaterial != null)
-                {
-                    hoveredOriginalMat = hoveredRenderer.material;
-                    hoveredRenderer.material = highlightMaterial;
-                }
-            }
-        }
-        else
-        {
-            RestoreHover();
+            HandleClick(Input.GetTouch(0).position);
         }
     }
 
-    void TryPlaceTile(Vector2? touchPos = null)
+    private void HandleClick(Vector2 screenPos)
     {
-        if (selectedButton == null) return;
+        if (mainCamera == null) return;
 
-        Vector2 screenPos = touchPos ?? (Vector2)Input.mousePosition;
         Ray ray = mainCamera.ScreenPointToRay(screenPos);
         RaycastHit hit;
 
-        if (Physics.Raycast(ray, out hit) && hit.transform.CompareTag(roadTileTag))
+        if (!Physics.Raycast(ray, out hit)) return;
+
+        RoadTile clickedTile = hit.transform.GetComponentInParent<RoadTile>();
+        if (clickedTile == null) return;
+
+        if (clickedTile.IsRotating) return;
+
+        if (selectedButton != null)
         {
-            GameObject oldTile = hit.transform.gameObject;
-
-            // Return tile to count if it matches an existing entry
-            ReturnTileToInventory(oldTile);
-
-            Vector3 pos = oldTile.transform.position;
-            Quaternion rot = oldTile.transform.rotation;
-            Transform parent = oldTile.transform.parent;
-
-            RestoreHover();
-            Destroy(oldTile);
-
-            // Spawn new tile
-            GameObject newTile = Instantiate(selectedButton.TileEntry.tilePrefab, pos, rot, parent);
-            newTile.tag = roadTileTag;
-
-            // Deduct count
-            selectedButton.UseOne();
-            if (selectedButton.RemainingCount <= 0)
-                selectedButton = null;
-
-            Debug.Log($"[TilePlacement] Placed: {selectedButton?.TileEntry.tileName ?? "none"}");
+            ReplaceTile(clickedTile);
+        }
+        else
+        {
+            clickedTile.Rotate90();
         }
     }
 
-    void ReturnTileToInventory(GameObject tile)
+    private void ReplaceTile(RoadTile oldTileComponent)
     {
-        // Check if the tile being replaced matches any toolbar entry — if so, return 1 to that slot
+        if (selectedButton == null || oldTileComponent == null) return;
+
+        GameObject oldTile = oldTileComponent.gameObject;
+
+        ReturnTileToInventory(oldTile);
+
+        Vector3 pos = oldTile.transform.position;
+        Quaternion rot = oldTile.transform.rotation;
+        Transform parent = oldTile.transform.parent;
+
+        RestoreHover();
+        Destroy(oldTile);
+
+        GameObject newTile = Instantiate(selectedButton.TilePrefab, pos, rot, parent);
+
+        if (newTile.GetComponent<RoadTile>() == null)
+        {
+            Debug.LogWarning($"The prefab '{newTile.name}' does not have a RoadTile component.");
+        }
+
+        selectedButton.UseOne();
+
+        if (selectedButton.RemainingCount <= 0)
+        {
+            selectedButton.SetSelected(false);
+            selectedButton = null;
+        }
+    }
+
+    private void ReturnTileToInventory(GameObject tile)
+    {
+        if (tile == null) return;
+
         foreach (TileButtonUI btn in tileButtons)
         {
-            if (tile.name.Contains(btn.TileEntry.tilePrefab.name))
+            if (btn.TilePrefab == null) continue;
+
+            string placedName = tile.name.Replace("(Clone)", "").Trim();
+            string prefabName = btn.TilePrefab.name.Replace("(Clone)", "").Trim();
+
+            if (placedName == prefabName)
             {
                 btn.ReturnOne();
                 return;
@@ -174,38 +191,89 @@ public class TilePlacementManager : MonoBehaviour
         }
     }
 
-    void RestoreHover()
+    private void HandleHover()
     {
-        if (hoveredTile != null && hoveredRenderer != null && hoveredOriginalMat != null)
+        if (selectedButton == null)
+        {
+            RestoreHover();
+            return;
+        }
+
+        if (mainCamera == null) return;
+
+        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+
+        if (Physics.Raycast(ray, out hit))
+        {
+            RoadTile tile = hit.transform.GetComponentInParent<RoadTile>();
+
+            if (tile != null)
+            {
+                GameObject obj = tile.gameObject;
+
+                if (obj != hoveredTile)
+                {
+                    RestoreHover();
+
+                    hoveredTile = obj;
+                    hoveredRenderer = obj.GetComponentInChildren<MeshRenderer>();
+
+                    if (hoveredRenderer != null && highlightMaterial != null)
+                    {
+                        hoveredOriginalMat = hoveredRenderer.material;
+                        hoveredRenderer.material = highlightMaterial;
+                    }
+                }
+
+                return;
+            }
+        }
+
+        RestoreHover();
+    }
+
+    private void RestoreHover()
+    {
+        if (hoveredRenderer != null && hoveredOriginalMat != null)
+        {
             hoveredRenderer.material = hoveredOriginalMat;
+        }
 
         hoveredTile = null;
         hoveredRenderer = null;
         hoveredOriginalMat = null;
     }
 
-    void ToggleEditorMode()
+    private void ToggleEditorMode()
     {
         isEditorMode = !isEditorMode;
-        toolbarPanel.SetActive(isEditorMode);
+
+        if (toolbarPanel != null)
+            toolbarPanel.SetActive(isEditorMode);
+
         UpdateToggleLabel();
 
         if (isEditorMode)
         {
-            if (car != null) car.StopMoving();
+            if (car != null)
+                car.StopMoving();
         }
         else
         {
             RestoreHover();
-            selectedButton?.SetSelected(false);
-            selectedButton = null;
+
+            if (selectedButton != null)
+            {
+                selectedButton.SetSelected(false);
+                selectedButton = null;
+            }
         }
     }
 
-    void UpdateToggleLabel()
+    private void UpdateToggleLabel()
     {
         if (editorToggleLabel != null)
-            editorToggleLabel.text = isEditorMode ? "▶ Play" : "✏ Edit";
+            editorToggleLabel.text = isEditorMode ? "Play" : "Edit";
     }
-
 }

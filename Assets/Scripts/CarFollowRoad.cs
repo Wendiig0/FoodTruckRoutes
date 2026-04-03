@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class CarFollowRoad : MonoBehaviour
@@ -13,13 +14,24 @@ public class CarFollowRoad : MonoBehaviour
 
     void Update()
     {
-        if (!isMoving || waypoints.Length == 0) return;
+        if (!isMoving || waypoints == null || waypoints.Length == 0) return;
 
         Transform target = waypoints[currentWaypointIndex];
 
-        // Move towards the target waypoint
-        transform.position = Vector3.MoveTowards(transform.position, target.position, moveSpeed * Time.deltaTime);
+        MoveToWaypoint(target);
+        RotateToWaypoint(target);
+        CheckWaypointReached(target);
+    }
 
+    void MoveToWaypoint(Transform target)
+    {
+        // Move towards the target waypoint
+        transform.position = Vector3.MoveTowards(
+            transform.position, target.position, moveSpeed * Time.deltaTime);
+    }
+
+    void RotateToWaypoint(Transform target)
+    {
         // Smoothly rotate towards the target waypoint
         Vector3 direction = (target.position - transform.position).normalized;
         if (direction != Vector3.zero)
@@ -27,20 +39,21 @@ public class CarFollowRoad : MonoBehaviour
             Quaternion lookRotation = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180, 0);
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, rotateSpeed * Time.deltaTime);
         }
+    }
 
+    void CheckWaypointReached(Transform target)
+    {
         // Check if the waypoint is reached
         if (Vector3.Distance(transform.position, target.position) <= waypointReachDistance)
         {
             currentWaypointIndex++;
 
-            // Reach the last waypoint - stop (DeliveryTarget will handle completion)
             if (currentWaypointIndex >= waypoints.Length)
             {
                 isMoving = false;
             }
         }
     }
-
 
     // Call this to start the car moving (e.g., from LevelManager on level start)
     public void StartMoving()
@@ -59,11 +72,11 @@ public class CarFollowRoad : MonoBehaviour
         if (waypoints == null || waypoints.Length < 2) return;
 
         Gizmos.color = Color.yellow;
-        for (int i = 0; i < waypoints.Length; i++)
+        for (int i = 0; i < waypoints.Length - 1; i++)
         {
-            if (waypoints[i] != null && waypoints[(i + 1) % waypoints.Length] != null)
+            if (waypoints[i] != null && waypoints[i + 1] != null)
             {
-                Gizmos.DrawLine(waypoints[i].position, waypoints[(i + 1) % waypoints.Length].position);
+                Gizmos.DrawLine(waypoints[i].position, waypoints[i + 1].position);
             }
         }
     }

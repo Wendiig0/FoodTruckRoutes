@@ -2,10 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-/// <summary>
-/// Attached to each tile button in the toolbar.
-/// Shows tile name, remaining count, and handles selection highlight.
-/// </summary>
 public class TileButtonUI : MonoBehaviour
 {
     [Header("UI References")]
@@ -16,26 +12,35 @@ public class TileButtonUI : MonoBehaviour
     public GameObject selectedOutline;
 
     private int remainingCount;
-    private TilePrefabEntry tileEntry;
+    private GameObject tilePrefab;
     private System.Action<TileButtonUI> onSelected;
 
-    public TilePrefabEntry TileEntry => tileEntry;
+    public GameObject TilePrefab => tilePrefab;
     public int RemainingCount => remainingCount;
 
-    public void Setup(TilePrefabEntry entry, System.Action<TileButtonUI> onSelectCallback)
+    public void Setup(string tileName, Texture tileIcon, int count, GameObject prefab, System.Action<TileButtonUI> onSelectCallback)
     {
-        tileEntry = entry;
-        remainingCount = entry.count;
+        tilePrefab = prefab;
+        remainingCount = count;
         onSelected = onSelectCallback;
 
-        tileNameText.text = entry.tileName;
-        UpdateCountText();
+        if (previewImage != null)
+            previewImage.texture = tileIcon;
 
-        button.onClick.AddListener(OnButtonClicked);
+        if (tileNameText != null)
+            tileNameText.text = tileName;
+
+        if (button != null)
+        {
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(OnButtonClicked);
+        }
+
+        UpdateCountText();
         SetSelected(false);
     }
 
-    void OnButtonClicked()
+    private void OnButtonClicked()
     {
         if (remainingCount <= 0) return;
         onSelected?.Invoke(this);
@@ -46,14 +51,15 @@ public class TileButtonUI : MonoBehaviour
         if (selectedOutline != null)
             selectedOutline.SetActive(selected);
 
-        // Dim button if out of tiles
-        button.interactable = remainingCount > 0;
+        if (button != null)
+            button.interactable = remainingCount > 0;
     }
 
     public void UseOne()
     {
         remainingCount = Mathf.Max(0, remainingCount - 1);
         UpdateCountText();
+
         if (remainingCount <= 0)
             SetSelected(false);
     }
@@ -62,12 +68,17 @@ public class TileButtonUI : MonoBehaviour
     {
         remainingCount++;
         UpdateCountText();
-        button.interactable = true;
+
+        if (button != null)
+            button.interactable = true;
     }
 
-    void UpdateCountText()
+    private void UpdateCountText()
     {
-        countText.text = $"x{remainingCount}";
-        countText.color = remainingCount > 0 ? Color.white : Color.red;
+        if (countText != null)
+        {
+            countText.text = $"x{remainingCount}";
+            countText.color = remainingCount > 0 ? Color.white : Color.red;
+        }
     }
 }
